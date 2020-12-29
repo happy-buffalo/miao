@@ -3,13 +3,13 @@
       <div class="search_input">
           <div class="search_input_wrapper">
               <i class="iconfont icon-sousuo"></i>
-              <input type="text" name="" id="">
+              <input type="text" name="" id="" v-model="message">
           </div>
       </div>
       <div class="search_result">
           <h3>电影/电视剧/综艺</h3>
           <ul>
-              <li>
+              <!-- <li>
                   <div class="img">
                       <img src="/images/movie_1.jpg" alt="">
                   </div>
@@ -19,16 +19,16 @@
                       <p>剧情，喜剧，犯罪</p>
                       <p>2021.2.3</p>
                   </div>
-              </li>
-              <li>
+              </li> -->
+              <li v-for="item in moviesList" :key="item.id">
                   <div class="img">
-                      <img src="/images/movie_2.jpg" alt="">
+                      <img :src="item.img|setWH('128.180')" alt="">
                   </div>
                   <div class="info">
-                      <p><span>无名之辈</span><span>8.5</span></p>
-                      <p>A Cool Fish</p>
-                      <p>剧情，喜剧，犯罪</p>
-                      <p>2021.2.3</p>
+                      <p><span>{{item.nm}}</span><span>{{item.sc}}</span></p>
+                      <p>{{item.enm}}</p>
+                      <p>{{item.cat}}</p>
+                      <p>{{item.rt}}</p>
                   </div>
               </li>
           </ul>
@@ -38,7 +38,58 @@
 
 <script>
   export default {
-      name:'Search'
+      name:'Search',
+      data(){
+          return {
+              message:'',
+              moviesList:[]
+          }
+      },
+      methods:{
+          //VUE axios请求频繁时，取消上一次请求
+          cancelRequest(){
+              if(typeof this.source==='function'){
+                  this.source('终止请求')
+              }
+          }
+      },
+    // 这里要用watch监听搜索框里的变化，对数据的渲染做异步的操作
+    // 所以不能使用mounted，但比computed计算属性好
+    // 对于搜素框快速输入时要做 “防抖”的策略，只对输入的最后一次进行请求触发，之前的输入进行清除。避免输入还没结束时，就axios请求多次
+    /* 解决：
+            1.设置clearTimeout和setTimeout
+            2.axios自带防抖功能
+    */
+    watch:{
+        message(newVal){
+            var that = this;
+
+            // 在里面要调用取消请求的方法
+            this.cancelRequest()
+
+            // 在这里axios请求 做字符串newVal拼接
+            this.axios.get('/api/searchList?cityId=10&kw='+newVal,{
+                //在axios第二个参数里配置防抖
+                cancelToken:new this.axios.CancelToken(function excutor(c){
+                    //this指向的问题
+                    that.source=c;
+                })
+            }).then((res)=>{
+                var msg=res.data.msg
+                var movies = res.data.data.movies
+                if(msg&&movies){
+                    this.moviesList=res.data.data.movies.list
+                }
+            }).catch((err)=>{
+                if(this.axios.isCancel(err)){
+                    console.log('Request canceled',err.message);//请求若被取消，这里是返回取消message
+                }else{
+                    console.log(err)
+                }
+            })
+        }
+    }
+
 }
 </script>
 
